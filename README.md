@@ -5,9 +5,9 @@ This project is for canadian campsite reviews and ratings. Users can find, rate,
 
 ## Features
 - User accounts with profiles.
-- Business search by location and category.
+- Campsite search by location and category.
 - User-generated reviews and ratings.
-- Business registration and profile management.
+
 
 ## Technologies
 - Frontend: HTML, CSS, JavaScript
