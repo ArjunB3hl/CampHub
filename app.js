@@ -19,8 +19,9 @@ const User = require('./models/user')
 const userRoutes = require('./routes/users');
 const campgroundRoutes = require('./routes/campgrounds');
 const reviewRoutes = require('./routes/reviews');
+const db_URL = process.env.DB_URL;
 
-mongoose.connect('mongodb://127.0.0.1:27017/project')
+mongoose.connect(db_URL)
     .then(() => {
         console.log("CONNECTION OPEN!!!")
     })

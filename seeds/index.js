@@ -3,7 +3,13 @@ const cities = require('./canadian_cities');
 const { places, descriptors } = require('./seedHelpers');
 const Campground = require('../models/campground');
 
-mongoose.connect('mongodb://127.0.0.1:27017/project')
+if (process.env.NODE_ENV !== "production") {
+    require('dotenv').config()
+}
+
+const db_URL = process.env.DB_URL;
+
+mongoose.connect(db_URL)
     .then(() => {
         console.log("CONNECTION OPEN!!!")
     })
@@ -21,7 +27,7 @@ const seedDB = async () => {
         const random100 = Math.floor(Math.random() * 100);
         const price = Math.floor(Math.random() * 30);
         const camp = new Campground({
-            author: '658e6576081235f3d0fbc157',
+            author: '65b1ba1dc8c28910126648ee',
             location: `${cities[random100].city}, ${cities[random100].province}`,
             title: `${sample(descriptors)} ${sample(places)}`,
             geometry: {
