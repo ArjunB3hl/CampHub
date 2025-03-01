@@ -1,15 +1,29 @@
 const express = require('express');
 const router = express.Router();
+const { cloudinary } = require('../cloudinary');  // Add this line
 const catchAsync = require('../utils/catchAsync');
-const { campgroundSchema } = require('../schemas.js');
-const multer = require('multer')
-const { storage, cloudinary } = require('../Cloudinary')
-const upload = multer({ storage })
+const validateCampground = require('../middleware/validateCampground');
+const multer = require('multer');
+const { storage } = require('../cloudinary'); // Assuming you're using Cloudinary
+const upload = multer({ 
+    storage,
+    limits: {
+        fileSize: 200000000 // 2MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Accept only images
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
+
+const Campground = require('../models/campground'); // Adjust path as needed
 
 const ExpressError = require('../utils/ExpressError');
-const Campground = require('../models/campground');
 const { isLoggedIn } = require("../middleware")
-const { validateCampground } = require("../middleware")
 const { isAuthor } = require("../middleware")
 
 const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding')
@@ -28,27 +42,50 @@ router.get('/new', isLoggedIn, (req, res) => {
 })
 
 
-router.post('/', isLoggedIn, upload.array('image'), validateCampground, catchAsync(async (req, res, next) => {
-    // if (!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
-    const geoData = await geocoder.forwardGeocode({
-        query: req.body.campground.location,
-        limit: 1
-    }).send()
+router.post('/', isLoggedIn, upload.array('image', 5), validateCampground, catchAsync(async (req, res, next) => {
+    console.log("Files in request:", req.files); // Debug line
+    try {
+        if (!req.files) {
+            throw new ExpressError('Please upload at least one image', 400);
+        }
 
-    const campground = new Campground(req.body.campground);
-    campground.geometry = geoData.body.features[0].geometry
+        const geoData = await geocoder.forwardGeocode({
+            query: req.body.campground.location,
+            limit: 1
+        }).send();
+        
+        if (!geoData.body.features || !geoData.body.features.length) {
+            throw new ExpressError("Could not find that location. Please try a different location.", 400);
+        }
 
-    campground.images = req.files.map(f => ({
-        url: f.path,
-        filename: f.filename
-    }))
-    campground.author = req.user._id
-    await campground.save();
-    console.log(campground)
+        const campground = new Campground(req.body.campground);
+        campground.geometry = geoData.body.features[0].geometry;
 
-    req.flash('success', 'Successfully made a new campground!');
-    res.redirect(`/campgrounds/${campground._id}`)
-}))
+        campground.images = req.files.map(f => ({
+            url: f.path,
+            filename: f.filename
+        }));
+        
+        campground.author = req.user._id;
+        
+        await campground.save();
+        console.log('Created campground:', campground); // Add this for debugging
+        
+        req.flash('success', 'Successfully created a new campground!');
+        res.redirect(`/campgrounds/${campground._id}`);
+    } catch (error) {
+        console.error("Campground creation error:", error);
+        
+        // Cleanup uploaded images if campground creation fails
+        if (req.files) {
+            for (let file of req.files) {
+                await cloudinary.uploader.destroy(file.filename);
+            }
+        }
+        
+        next(error);
+    }
+}));
 
 
 

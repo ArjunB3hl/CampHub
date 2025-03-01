@@ -83,10 +83,26 @@ app.all('*', (req, res, next) => {
 })
 
 app.use((err, req, res, next) => {
-    const { statusCode = 500 } = err;
-    if (!err.message) err.message = 'Oh No, Something Went Wrong!'
-    res.status(statusCode).render('error', { err })
-})
+    // Wrap non-Error types for consistency
+    if (!(err instanceof Error)) {
+        err = new Error(err);
+    }
+    
+    const statusCode = err.statusCode || 500;
+    
+    // Ensure err.message is set
+    if (!err.message) {
+        err.message = 'Oh No, Something Went Wrong!';
+    }
+    
+    // Enhanced error logging
+    console.error('ERROR DETAILS:');
+    console.error('- Message:', err.message);
+    console.error('- Status:', statusCode);
+    console.error('- Stack:', err.stack || 'No stack available');
+    
+    res.status(statusCode).render('error', { err });
+});
 
 app.listen(3000, () => {
     console.log('Serving on port 3000')
